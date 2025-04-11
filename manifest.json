@@ -1,6 +1,6 @@
 {
-  "name": "Luckdraw Timer-Updated",
-  "short_name": "Luckdraw Timer",
+  "name": "Luckydraw Timer",
+  "short_name": "Luckydraw Timer",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f5f5f5",

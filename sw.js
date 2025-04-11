@@ -1,4 +1,4 @@
-const CACHE_NAME = 'luckdraw-timer-cache-v1';
+const CACHE_NAME = 'luckydraw-timer-cache-v1';
 const urlsToCache = [
   './',
   './index.html',
