@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luckdraw Timer</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#333333">
+    <link rel="apple-touch-icon" href="icon.png">
+    <meta name="description" content="A customizable timer with work/rest periods and hyperfocus mode">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: #333;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-history {
+            background-color: #bdecf2;
+            color: #333;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn-settings {
+            background-color: #ccfaca;
+            color: #333;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 2rem auto;
+            padding: 1rem;
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .checkbox-group input {
+            width: auto;
+            margin-right: 10px;
+        }
+
+        .btn-start {
+            background-color: #ccfaca;
+            color: #333;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        .btn-stop {
+            background-color: #ff9999;
+            color: #333;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        .timer-display {
+            font-size: 3rem;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .timer-info {
+            text-align: center;
+            margin-bottom: 1rem;
+            font-weight: bold;
+        }
+
+        .timer-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 1rem;
+        }
+
+        .mode-indicator {
+            font-size: 1.2rem;
+            text-align: center;
+            margin: 10px 0;
+            padding: 8px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .work-mode {
+            background-color: #cce6ff;
+            color: #336699;
+        }
+
+        .rest-mode {
+            background-color: #ccfaca;
+            color: #336633;
+        }
+
+        .time-ratio {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        /* Circular Progress Bar */
+        .timer-circle-container {
+            width: 200px;
+            height: 200px;
+            position: relative;
+            margin: 0 auto 20px;
+        }
+
+        .timer-circle {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            background: #f0f0f0;
+        }
+
+        .timer-circle::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: conic-gradient(#80b3ff 0deg, #f0f0f0 0deg);
+            transition: background 0.3s ease;
+        }
+
+        .timer-circle.work::before {
+            background: conic-gradient(#80b3ff var(--progress), #f0f0f0 var(--progress));
+        }
+
+        .timer-circle.rest::before {
+            background: conic-gradient(#ccfaca var(--progress), #f0f0f0 var(--progress));
+        }
+
+        .timer-circle.hyperfocus::before {
+            background: conic-gradient(#ffeb3b var(--progress), #f0f0f0 var(--progress));
+        }
+
+        .timer-circle-inner {
+            width: 150px;
+            height: 150px;
+            background: white;
+            border-radius: 50%;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
+        }
+
+        /* Notification styles */
+        .notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            max-width: 500px;
+            width: 90%;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            padding: 25px 30px;
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+            z-index: 1000;
+            opacity: 0;
+        }
+
+        .notification.show {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+        }
+
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .notification-title {
+            font-weight: bold;
+            font-size: 24px;
+        }
+
+        .notification-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+            padding: 5px;
+        }
+
+        .notification-message {
+            font-size: 18px;
+            line-height: 1.5;
+            margin-bottom: 15px;
+        }
+
+        .notification-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .notification-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+
+        .notification-btn-yes {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .notification-btn-no {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .notification-btn:hover {
+            opacity: 0.9;
+        }
+
+        /* Hyperfocus timer styles */
+        .hyperfocus-mode {
+            background-color: #ffeb3b;
+            color: #333;
+        }
+
+        .hyperfocus-timer {
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+            color: #ff6f00;
+        }
+
+        .hyperfocus-info {
+            text-align: center;
+            margin-bottom: 15px;
+            font-style: italic;
+            color: #ff6f00;
+        }
+
+        /* History styles */
+        .history-list {
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            background-color: #f5f5f5;
+            border-left: 4px solid #ccc;
+        }
+
+        .history-item h3 {
+            margin-bottom: 5px;
+            font-size: 16px;
+        }
+
+        .history-item p {
+            margin: 5px 0;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .history-item.completed {
+            border-left-color: #4CAF50;
+        }
+
+        .history-item.stopped {
+            border-left-color: #ff9999;
+        }
+
+        .history-details {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #888;
+        }
+
+        .history-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+
+        .btn-clear-history {
+            background-color: #ff9999;
+            color: #333;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .empty-history {
+            text-align: center;
+            padding: 30px;
+            color: #888;
+        }
+
+        .slider-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .slider {
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-title">Luckdraw Timer</div>
+        <div class="header-buttons">
+            <button class="btn-history" onclick="showHistory()">Show History</button>
+            <button class="btn-settings" onclick="showSettings()">Settings</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <div id="setupSection">
+                <div class="form-group">
+                    <label for="taskName">Task Name:</label>
+                    <input type="text" id="taskName" placeholder="Enter task name">
+                </div>
+                <div class="form-group">
+                    <label for="duration">Total Duration (minutes):</label>
+                    <input type="number" id="duration" min="1" value="25">
+                </div>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="randomToggle" checked>
+                    <label for="randomToggle">Randomly split between work and rest</label>
+                </div>
+                
+                <div id="manualSplitSection" style="display: none;">
+                    <div class="slider-group">
+                        <label for="workRatioSlider">Work/Rest Ratio:</label>
+                        <input type="range" id="workRatioSlider" min="10" max="90" value="50" class="slider">
+                        <div class="slider-labels">
+                            <span>10% Work</span>
+                            <span id="workRatioLabel">50% Work</span>
+                            <span>90% Work</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="btn-start" onclick="startTimer()">Start Timer</button>
+            </div>
+            
+            <div id="timerSection" style="display: none;">
+                <div class="timer-info" id="taskDisplay"></div>
+                <div class="mode-indicator" id="modeIndicator">WORK</div>
+                
+                <!-- Circle Timer -->
+                <div class="timer-circle-container">
+                    <div class="timer-circle work" id="timerCircle">
+                        <div class="timer-circle-inner">
+                            <div class="timer-display" id="timeDisplay">00:00</div>
+                            <div id="currentPhase" style="font-size: 14px;">Current Phase</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="time-ratio" id="timeRatio"></div>
+                
+                <div class="timer-controls">
+                    <button class="btn-stop" onclick="stopTimer()">Stop Timer</button>
+                </div>
+            </div>
+            
+            <div id="historySection" style="display: none;">
+                <h2>Timer History</h2>
+                <div class="history-list" id="historyList">
+                    <!-- History items will be added here -->
+                </div>
+                <div class="history-actions">
+                    <button class="btn-clear-history" onclick="clearHistory()">Clear History</button>
+                    <button class="btn-start" onclick="backToMain()">Back</button>
+                </div>
+            </div>
+            
+            <div id="settingsSection" style="display: none;">
+                <h2>Settings</h2>
+                <p>Timer settings will appear here.</p>
+                <button class="btn-start" onclick="backToMain()">Back</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notification container -->
+    <div class="notification" id="notification">
+        <div class="notification-header">
+            <div class="notification-title" id="notificationTitle">Timer Alert</div>
+            <button class="notification-close" onclick="hideNotification()">×</button>
+        </div>
+        <div class="notification-message" id="notificationMessage"></div>
+        <div class="notification-buttons" id="notificationButtons" style="display: none;">
+            <button class="notification-btn notification-btn-yes" id="continueHyperfocusBtn">Yes, Continue</button>
+            <button class="notification-btn notification-btn-no" id="stopHyperfocusBtn">No, Take a Break</button>
+        </div>
+    </div>
+
+    <script>
+        // Timer variables
+        let timerInterval;
+        let secondsLeft = 0;
+        let totalSeconds = 0;
+        let isRunning = false;
+        let workSeconds = 0;
+        let restSeconds = 0;
+        let isWorkMode = true;
+        let workPercent = 0;
+        let currentTaskName = "";
+        let timerStartTime = null;
+        let timerHistory = [];
+        let hyperfocusInterval = null;
+        let hyperfocusSeconds = 0;
+        let isHyperfocusMode = false;
+        
+        // Elements
+        const timerCircle = document.getElementById('timerCircle');
+        const randomToggle = document.getElementById('randomToggle');
+        const manualSplitSection = document.getElementById('manualSplitSection');
+        const workRatioSlider = document.getElementById('workRatioSlider');
+        const workRatioLabel = document.getElementById('workRatioLabel');
+        const notification = document.getElementById('notification');
+        
+        // Self-care reminders for work phase completion
+        const selfCareReminders = [
+            "Note to self: stay hydrated, check in with my body!",
+            "Remember to stretch and take a deep breath!",
+            "Great job focusing! Now take a moment for yourself.",
+            "Time for a break - how's your posture? Need some water?",
+            "Work session complete! Stand up, stretch, and breathe.",
+            "Time to rest your eyes and mind for a bit.",
+            "You've earned a break! Take care of your needs now."
+        ];
+        
+        // Hyperfocus check-in reminders
+        const hyperfocusCheckInReminders = [
+            "Before entering hyperfocus mode, take a quick body scan. How are you feeling?",
+            "Ready for hyperfocus? First, check your posture, take a deep breath, and have water nearby.",
+            "Before continuing, do a quick self-check: How's your energy level? Hydration? Posture?",
+            "Hyperfocus can be intense. Take a moment to stretch, breathe, and prepare yourself.",
+            "About to enter hyperfocus mode. Quick check: Are you comfortable? Hydrated? Ready?"
+        ];
+
+        // Hyperfocus exit reminders
+        const hyperfocusExitReminders = [
+            "Good job on your hyperfocus session! Now it's essential to take your rest break.",
+            "Your brain needs recovery time after intense focus. Let's take that rest now.",
+            "Remember: breaks are just as important as work for overall productivity.",
+            "Great hyperfocus session! Time to give your brain the rest it needs.",
+            "Well done on your deep work! Now let's honor your need for rest."
+        ];
+        
+        // Show notification
+        function showNotification(title, message, type, showButtons = false, buttonMode = "default") {
+            document.getElementById('notificationTitle').textContent = title;
+            document.getElementById('notificationMessage').textContent = message;
+            
+            // Remove any existing classes and add the new type
+            notification.className = 'notification';
+            notification.classList.add(`notification-${type}`);
+            notification.classList.add('show');
+            
+            // Show or hide buttons based on parameter
+            const buttonsContainer = document.getElementById('notificationButtons');
+            const yesButton = document.getElementById('continueHyperfocusBtn');
+            const noButton = document.getElementById('stopHyperfocusBtn');
+            
+            if (showButtons) {
+                buttonsContainer.style.display = 'flex';
+                
+                // Configure buttons based on mode
+                if (buttonMode === "confirm-check-in") {
+                    yesButton.textContent = "I've Checked In";
+                    noButton.textContent = "Skip Hyperfocus";
+                    
+                    yesButton.onclick = continueToHyperfocus;
+                    noButton.onclick = function() {
+                        hideNotification();
+                        
+                        // If declining hyperfocus, restart the timer in rest mode
+                        if (!isWorkMode && !isHyperfocusMode) {
+                            timerInterval = setInterval(updateTimer, 1000);
+                            document.getElementById('timeDisplay').textContent = formatTime(secondsLeft);
+                            updateCircleProgress(0);
+                            playTransitionSound();
+                        } else {
+                            showSection('setupSection');
+                        }
+                    };
+                } else {
+                    // Default hyperfocus choice buttons
+                    yesButton.textContent = "Yes, Continue";
+                    noButton.textContent = "No, Take a Break";
+                    
+                    yesButton.onclick = startHyperfocusMode;
+                    noButton.onclick = function() {
+                        hideNotification();
+                        
+                        // If declining hyperfocus, restart the timer in rest mode
+                        if (!isWorkMode && !isHyperfocusMode) {
+                            timerInterval = setInterval(updateTimer, 1000);
+                            document.getElementById('timeDisplay').textContent = formatTime(secondsLeft);
+                            updateCircleProgress(0);
+                            playTransitionSound();
+                        } else {
+                            showSection('setupSection');
+                        }
+                    };
+                }
+            } else {
+                buttonsContainer.style.display = 'none';
+            }
+            
+            // Hide notification after 12 seconds
+            // Only auto-hide if not showing buttons
+            if (!showButtons) {
+                setTimeout(hideNotification, 12000);
+            }
+        }
+        
+        // Hide notification
+        function hideNotification() {
+            notification.classList.remove('show');
+        }
+        
+        // Get random message from an array
+        function getRandomMessage(messageArray) {
+            const randomIndex = Math.floor(Math.random() * messageArray.length);
+            return messageArray[randomIndex];
+        }
+        
+        // Load history from localStorage
+        function loadHistory() {
+            const savedHistory = localStorage.getItem('timerHistory');
+            if (savedHistory) {
+                timerHistory = JSON.parse(savedHistory);
+            }
+        }
+        
+        // Save history to localStorage
+        function saveHistory() {
+            localStorage.setItem('timerHistory', JSON.stringify(timerHistory));
+        }
+        
+        // Add a new entry to history
+        function addHistoryEntry(taskName, totalTime, workTime, restTime, isCompleted) {
+            const now = new Date();
+            const entry = {
+                id: Date.now(), // Unique ID based on timestamp
+                taskName: taskName,
+                totalTime: totalTime,
+                workTime: workTime,
+                restTime: restTime,
+                workPercent: workPercent,
+                date: now.toISOString(),
+                formattedDate: now.toLocaleString(),
+                isCompleted: isCompleted
+            };
+            
+            timerHistory.unshift(entry); // Add to beginning of array
+            saveHistory();
+        }
+        
+        // Clear all history
+        function clearHistory() {
+            if (confirm('Are you sure you want to clear all timer history?')) {
+                timerHistory = [];
+                saveHistory();
+                displayHistory();
+            }
+        }
+        
+        // Display history entries
+        function displayHistory() {
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = '';
+            
+            if (timerHistory.length === 0) {
+                historyList.innerHTML = '<div class="empty-history">No timer history yet</div>';
+                return;
+            }
+            
+            timerHistory.forEach(entry => {
+                const historyItem = document.createElement('div');
+                historyItem.className = `history-item ${entry.isCompleted ? 'completed' : 'stopped'}`;
+                
+                historyItem.innerHTML = `
+                    <h3>${entry.taskName}</h3>
+                    <p>Total Duration: ${formatTime(entry.totalTime)}</p>
+                    <p>Work: ${formatTime(entry.workTime)} (${entry.workPercent}%) / Rest: ${formatTime(entry.restTime)} (${100-entry.workPercent}%)</p>
+                    <p>Status: ${entry.isCompleted ? 'Completed' : 'Stopped early'}</p>
+                    <div class="history-details">
+                        <span>${entry.formattedDate}</span>
+                    </div>
+                `;
+                
+                historyList.appendChild(historyItem);
+            });
+        }
+        
+        // Update work ratio label when slider changes
+        workRatioSlider.addEventListener('input', function() {
+            workRatioLabel.textContent = `${this.value}% Work`;
+        });
+        
+        // Ensure duration input is properly responding
+        const durationInput = document.getElementById('duration');
+        durationInput.addEventListener('change', function() {
+            console.log("Duration changed to:", this.value);
+        });
+        
+        // Toggle between random and manual split
+        randomToggle.addEventListener('change', function() {
+            manualSplitSection.style.display = this.checked ? 'none' : 'block';
+        });
+        
+        // Show specific section, hide others
+        function showSection(sectionId) {
+            document.getElementById('setupSection').style.display = 'none';
+            document.getElementById('timerSection').style.display = 'none';
+            document.getElementById('historySection').style.display = 'none';
+            document.getElementById('settingsSection').style.display = 'none';
+            
+            document.getElementById(sectionId).style.display = 'block';
+            
+            // If showing history, update the display
+            if (sectionId === 'historySection') {
+                displayHistory();
+            }
+        }
+        
+        // Navigation functions
+        function backToMain() {
+            showSection('setupSection');
+        }
+        
+        function showHistory() {
+            showSection('historySection');
+        }
+        
+        function showSettings() {
+            showSection('settingsSection');
+        }
+        
+        // Format time as MM:SS
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+        
+        // Update timer circle progress
+        function updateCircleProgress(percentage) {
+            const degrees = percentage * 360;
+            timerCircle.style.setProperty('--progress', `${degrees}deg`);
+        }
+        
+        // Switch between work and rest modes
+        function switchMode() {
+            isWorkMode = !isWorkMode;
+            const modeIndicator = document.getElementById('modeIndicator');
+            const currentPhase = document.getElementById('currentPhase');
+            
+            if (isWorkMode) {
+                modeIndicator.textContent = "WORK";
+                modeIndicator.className = "mode-indicator work-mode";
+                currentPhase.textContent = "Work Phase";
+                timerCircle.className = "timer-circle work";
+                secondsLeft = workSeconds;
+                
+                // Show notification for rest completion
+                showNotification("Back to Work", getRandomMessage(restCompleteMessages), "rest");
+            } else {
+                modeIndicator.textContent = "REST";
+                modeIndicator.className = "mode-indicator rest-mode";
+                currentPhase.textContent = "Rest Phase";
+                timerCircle.className = "timer-circle rest";
+                secondsLeft = restSeconds;
+                
+                // Pause the timer while showing the hyperfocus option
+                clearInterval(timerInterval);
+                
+                // Show self-care reminder with hyperfocus option
+                showNotification(
+                    "Break Time", 
+                    getRandomMessage(selfCareReminders) + " Are you in hyperfocus and want to continue working?", 
+                    "work",
+                    true // Show buttons
+                );
+                
+                // Don't restart the timer here - it will be restarted when the user chooses
+                return; // Exit the function early
+            }
+            
+            document.getElementById('timeDisplay').textContent = formatTime(secondsLeft);
+            updateCircleProgress(0); // Reset circle progress for new phase
+            
+            // Play transition sound
+            playTransitionSound();
+        }
+        
+        // Calculate random split between work and rest
+        function calculateRandomSplit(totalMinutes) {
+            // If random toggle is checked, create a random split
+            if (randomToggle.checked) {
+                // Random value between 20% and 80% for work
+                const workPercent = Math.floor(Math.random() * 61) + 20; // 20-80%
+                return workPercent;
+            } else {
+                // Use the manual slider value
+                return parseInt(workRatioSlider.value);
+            }
+        }
+        
+        // Update timer display and check for completion
+        function updateTimer() {
+            if (secondsLeft <= 0) {
+                // Check if we need to switch modes
+                if ((isWorkMode && restSeconds > 0) || (!isWorkMode && workSeconds > 0)) {
+                    switchMode();
+                } else {
+                    // Both work and rest are complete
+                    clearInterval(timerInterval);
+                    document.getElementById('timeDisplay').textContent = "00:00";
+                    
+                    // Add to history - completed
+                    const initialWorkTime = Math.ceil((totalSeconds * workPercent) / 100);
+                    const initialRestTime = totalSeconds - initialWorkTime;
+                    addHistoryEntry(
+                        currentTaskName, 
+                        totalSeconds, 
+                        initialWorkTime, 
+                        initialRestTime, 
+                        true // Completed
+                    );
+                    
+                    // Play final completion sound
+                    playCompletionSound();
+                    
+                    // Show final completion notification
+                    showNotification("Time's Up!", getRandomMessage(finalCompleteMessages), "final");
+                    
+                    isRunning = false;
+                    showSection('setupSection');
+                }
+                return;
+            }
+            
+            secondsLeft--;
+            document.getElementById('timeDisplay').textContent = formatTime(secondsLeft);
+            
+            // Update current phase seconds
+            if (isWorkMode) {
+                workSeconds = secondsLeft;
+            } else {
+                restSeconds = secondsLeft;
+            }
+            
+            // Update circle progress for current phase
+            const originalTotal = isWorkMode ? 
+                Math.ceil((totalSeconds * workPercent) / 100) : 
+                totalSeconds - Math.ceil((totalSeconds * workPercent) / 100);
+            
+            const percentComplete = 1 - (secondsLeft / originalTotal);
+            updateCircleProgress(percentComplete);
+        }
+        
+        // Play transition sound between phases
+        function playTransitionSound() {
+            try {
+                const context = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = context.createOscillator();
+                const gainNode = context.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(context.destination);
+                
+                oscillator.type = 'sine';
+                
+                // Play a two-note chime
+                const notes = isWorkMode ? [600, 800] : [800, 600];
+                const duration = 200;
+                
+                notes.forEach((note, i) => {
+                    setTimeout(() => {
+                        oscillator.frequency.setValueAtTime(note, context.currentTime);
+                        gainNode.gain.setValueAtTime(0.5, context.currentTime);
+                        if (i === notes.length - 1) {
+                            setTimeout(() => {
+                                gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.5);
+                                setTimeout(() => oscillator.stop(), 500);
+                            }, duration);
+                        }
+                    }, i * duration);
+                });
+                
+                oscillator.start();
+            } catch (e) {
+                console.error('Error playing sound:', e);
+            }
+        }
+        
+        // Play a more complex sound for final completion
+        function playCompletionSound() {
+            try {
+                const context = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = context.createOscillator();
+                const gainNode = context.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(context.destination);
+                
+                oscillator.type = 'sine';
+                
+                // Play a three-note success chime
+                const notes = [600, 800, 1000];
+                const duration = 200;
+                
+                notes.forEach((note, i) => {
+                    setTimeout(() => {
+                        oscillator.frequency.setValueAtTime(note, context.currentTime);
+                        gainNode.gain.setValueAtTime(0.5, context.currentTime);
+                        if (i === notes.length - 1) {
+                            setTimeout(() => {
+                                gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.5);
+                                setTimeout(() => oscillator.stop(), 500);
+                            }, duration);
+                        }
+                    }, i * duration);
+                });
+                
+                oscillator.start();
+            } catch (e) {
+                console.error('Error playing sound:', e);
+            }
+        }
+        
+        // Start the timer
+        function startTimer() {
+            const taskNameInput = document.getElementById('taskName');
+            const durationInput = document.getElementById('duration');
+            const taskName = taskNameInput.value || "Unnamed Task";
+            const duration = parseInt(durationInput.value) || 25;
+            
+            console.log("Starting timer with duration:", duration, "minutes");
+            
+            if (duration <= 0) {
+                alert("Please enter a valid duration");
+                return;
+            }
+            
+            // Set timer values
+            currentTaskName = taskName;
+            totalSeconds = duration * 60;
+            timerStartTime = new Date();
+            
+            // Calculate work/rest split
+            workPercent = calculateRandomSplit(duration);
+            const totalWorkSeconds = Math.ceil((totalSeconds * workPercent) / 100);
+            const totalRestSeconds = totalSeconds - totalWorkSeconds;
+            
+            // Initialize work and rest time
+            workSeconds = totalWorkSeconds;
+            restSeconds = totalRestSeconds;
+            
+            // Start with work mode
+            isWorkMode = true;
+            secondsLeft = workSeconds;
+            
+            // Update UI
+            document.getElementById('timeDisplay').textContent = formatTime(secondsLeft);
+            document.getElementById('taskDisplay').textContent = `Current Task: ${taskName}`;
+            
+            const modeIndicator = document.getElementById('modeIndicator');
+            modeIndicator.textContent = "WORK";
+            modeIndicator.className = "mode-indicator work-mode";
+            document.getElementById('currentPhase').textContent = "Work Phase";
+            
+            document.getElementById('timeRatio').textContent = 
+                `Split: ${workPercent}% Work (${formatTime(totalWorkSeconds)}) / ${100-workPercent}% Rest (${formatTime(totalRestSeconds)})`;
+            
+            // Reset circle
+            timerCircle.className = "timer-circle work";
+            updateCircleProgress(0);
+            
+            // Show timer section
+            showSection('timerSection');
+            
+            // Show start notification
+            showNotification("Timer Started", `${taskName} - Work phase started. Focus time!`, "work");
+            
+            // Start the timer
+            isRunning = true;
+            clearInterval(timerInterval); // Clear any existing interval
+            timerInterval = setInterval(updateTimer, 1000);
+            
+            // Play a sound to indicate start
+            playTransitionSound();
+        }
+        
+        // Start hyperfocus mode with body check-in first
+        function startHyperfocusMode() {
+            hideNotification();
+            
+            // Show body check-in notification first
+            showNotification(
+                "Body Check-In", 
+                getRandomMessage(hyperfocusCheckInReminders), 
+                "work",
+                true, // Show buttons 
+                "confirm-check-in" // Special button mode
+            );
+        }
+        
+        // Continue to actual hyperfocus mode after check-in
+        function continueToHyperfocus() {
+            hideNotification();
+            isHyperfocusMode = true;
+            hyperfocusSeconds = 0;
+            
+            // Update UI for hyperfocus mode
+            document.getElementById('modeIndicator').textContent = "HYPERFOCUS";
+            document.getElementById('modeIndicator').className = "mode-indicator hyperfocus-mode";
+            document.getElementById('currentPhase').textContent = "Hyperfocus Mode";
+            document.getElementById('timeDisplay').textContent = "00:00";
+            document.getElementById('timeRatio').textContent = "Counting up - Remember to take breaks!";
+            
+            // Change circle color
+            timerCircle.className = "timer-circle hyperfocus";
+            
+            // Start the hyperfocus timer
+            clearInterval(hyperfocusInterval);
+            hyperfocusInterval = setInterval(updateHyperfocusTimer, 1000);
+            
+            // Show notification with moderation reminder
+            showNotification("Hyperfocus Mode", "You're in the zone! Remember that even in hyperfocus, regular breaks help maintain productivity.", "work");
+            
+            // Play a special sound for hyperfocus
+            playHyperfocusSound();
+        }
+        
+        // Update hyperfocus timer with reminders
+        function updateHyperfocusTimer() {
+            hyperfocusSeconds++;
+            document.getElementById('timeDisplay').textContent = formatTime(hyperfocusSeconds);
+            
+            // Update circle progress (for visual feedback)
+            const progress = (hyperfocusSeconds % 360) / 360;
+            updateCircleProgress(progress);
+            
+            // Remind about taking breaks at regular intervals (every 15 minutes)
+            if (hyperfocusSeconds % 900 === 0 && hyperfocusSeconds > 0) {
+                showNotification(
+                    "Hyperfocus Check", 
+                    "You've been in hyperfocus for " + Math.floor(hyperfocusSeconds/60) + " minutes. Remember to take breaks for your wellbeing!", 
+                    "work"
+                );
+            }
+        }
+        
+        // Play a special sound for hyperfocus
+        function playHyperfocusSound() {
+            try {
+                const context = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = context.createOscillator();
+                const gainNode = context.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(context.destination);
+                
+                oscillator.type = 'sine';
+                
+                // Play a rising tone sequence
+                const notes = [600, 700, 800, 900, 1000];
+                const duration = 150;
+                
+                notes.forEach((note, i) => {
+                    setTimeout(() => {
+                        oscillator.frequency.setValueAtTime(note, context.currentTime);
+                        gainNode.gain.setValueAtTime(0.5, context.currentTime);
+                        if (i === notes.length - 1) {
+                            setTimeout(() => {
+                                gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.5);
+                                setTimeout(() => oscillator.stop(), 500);
+                            }, duration);
+                        }
+                    }, i * duration);
+                });
+                
+                oscillator.start();
+            } catch (e) {
+                console.error('Error playing sound:', e);
+            }
+        }
+        
+        // Stop the timer
+        function stopTimer() {
+            clearInterval(timerInterval);
+            
+            if (isHyperfocusMode) {
+                clearInterval(hyperfocusInterval);
+                isHyperfocusMode = false;
+                
+                // Record hyperfocus session duration
+                const hyperfocusMinutes = Math.floor(hyperfocusSeconds / 60);
+                
+                // Show notification to suggest continuing with rest
+                showNotification(
+                    "Hyperfocus Complete", 
+                    getRandomMessage(hyperfocusExitReminders) + " You were in hyperfocus for " + hyperfocusMinutes + " minutes.", 
+                    "rest",
+                    true,
+                    "continue-rest"
+                );
+                
+                // Update the "Yes" button to continue with rest
+                const continueRestBtn = document.getElementById('continueHyperfocusBtn');
+                continueRestBtn.textContent = "Continue with Rest";
+                continueRestBtn.onclick = function() {
+                    hideNotification();
+                    
+                    // Resume the rest phase
+                    isWorkMode = false;
+                    const modeIndicator = document.getElementById('modeIndicator');
+                    modeIndicator.textContent = "REST";
+                    modeIndicator.className = "mode-indicator rest-mode";
+                    document.getElementById('currentPhase').textContent = "Rest Phase";
+                    timerCircle.className = "timer-circle rest";
+                    
+                    // Make sure we still have rest time
+                    if (restSeconds <= 0) {
+                        restSeconds = Math.max(Math.floor(hyperfocusSeconds / 4), 60); // At least 1 minute or 1/4 of hyperfocus time
+                    }
+                    
+                    secondsLeft = restSeconds;
+                    document.getElementById('timeDisplay').textContent = formatTime(secondsLeft);
+                    updateCircleProgress(0);
+                    
+                    // Restart timer
+                    timerInterval = setInterval(updateTimer, 1000);
+                    isRunning = true;
+                };
+                
+                return;
+            }
+            
+            isRunning = false;
+            
+            // Add to history - not completed
+            const initialWorkTime = Math.ceil((totalSeconds * workPercent) / 100);
+            const initialRestTime = totalSeconds - initialWorkTime;
+            
+            addHistoryEntry(
+                currentTaskName, 
+                totalSeconds, 
+                initialWorkTime, 
+                initialRestTime, 
+                false // Not completed
+            );
+            
+            // Show notification that timer was stopped
+            showNotification("Timer Stopped", "You've stopped the timer early. That's okay!", "rest");
+            
+            showSection('setupSection');
+        }
+        
+        // Initialize on page load
+        window.onload = function() {
+            loadHistory();
+        };
+    </script>
+</body>
+</html>

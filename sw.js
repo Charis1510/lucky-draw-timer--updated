@@ -1,7 +1,7 @@
-const CACHE_NAME = 'adhd-timer-cache-v1';
+const CACHE_NAME = 'luckdraw-timer-cache-v1';
 const urlsToCache = [
   './',
-  './ADHD TIMER VER 4.html',
+  './index.html',
   './manifest.json',
   './icon.png',
   './icon-512.png'
