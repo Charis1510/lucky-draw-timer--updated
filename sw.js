@@ -1,92 +1,71 @@
-const CACHE_NAME = 'luckydraw-timer-cache-v1';
-const urlsToCache = [
-  './',
-  './index.html',
-  './manifest.json'
-  // Only include files we know exist
-  // Remove icon references if they're causing problems
-];
+// Simple service worker for offline functionality
+const CACHE_NAME = 'luckydraw-timer-cache-v2';
 
-// Install event - cache all required resources
+// Install event
 self.addEventListener('install', function(event) {
-  console.log('[ServiceWorker] Install');
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(function(cache) {
-        console.log('[ServiceWorker] Caching app shell');
-        // Cache files one by one to identify problems
-        return Promise.all(
-          urlsToCache.map(url => {
-            return fetch(url)
-              .then(response => {
-                if (!response.ok) {
-                  throw new Error(`Failed to fetch ${url}`);
-                }
-                return cache.put(url, response);
-              })
-              .catch(error => {
-                console.error(`[ServiceWorker] Could not cache: ${url}`, error);
-                // Continue despite error with this file
-                return Promise.resolve();
-              });
-          })
-        );
-      })
-  );
+  console.log('[ServiceWorker] Installing');
+  // Skip waiting so the new service worker activates immediately
+  self.skipWaiting();
 });
 
-// Activate event - clean up old caches
+// Activate event
 self.addEventListener('activate', function(event) {
-  console.log('[ServiceWorker] Activate');
+  console.log('[ServiceWorker] Activating');
+  
+  // Claim clients so the page is immediately controlled by this service worker
+  event.waitUntil(self.clients.claim());
+  
+  // Clean up old caches
   event.waitUntil(
-    caches.keys().then(function(keyList) {
-      return Promise.all(keyList.map(function(key) {
-        if (key !== CACHE_NAME) {
-          console.log('[ServiceWorker] Removing old cache', key);
-          return caches.delete(key);
-        }
-      }));
+    caches.keys().then(function(cacheNames) {
+      return Promise.all(
+        cacheNames.filter(function(cacheName) {
+          return cacheName !== CACHE_NAME;
+        }).map(function(cacheName) {
+          console.log('[ServiceWorker] Removing old cache', cacheName);
+          return caches.delete(cacheName);
+        })
+      );
     })
   );
-  return self.clients.claim();
 });
 
-// Fetch event - serve from cache or network
+// Fetch event
 self.addEventListener('fetch', function(event) {
   event.respondWith(
-    caches.match(event.request)
+    // First try to fetch the resource from the network
+    fetch(event.request)
       .then(function(response) {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-
-        // Clone the request because it's a one-time use stream
-        var fetchRequest = event.request.clone();
-
-        return fetch(fetchRequest)
-          .then(function(response) {
-            // Check if we received a valid response
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
+        // Make a copy of the response
+        const responseToCache = response.clone();
+        
+        // Open the cache and store the response
+        caches.open(CACHE_NAME)
+          .then(function(cache) {
+            // Only cache same-origin requests to avoid CORS issues
+            if (event.request.url.startsWith(self.location.origin)) {
+              cache.put(event.request, responseToCache);
             }
-
-            // Clone the response because it's a one-time use stream
-            var responseToCache = response.clone();
-
-            caches.open(CACHE_NAME)
-              .then(function(cache) {
-                cache.put(event.request, responseToCache);
-              })
-              .catch(function(error) {
-                console.error('[ServiceWorker] Cache put error:', error);
-              });
-
-            return response;
           })
           .catch(function(error) {
-            console.log('[ServiceWorker] Fetch failed:', error);
-            // You can return a custom offline page here
+            console.log('[ServiceWorker] Cache error:', error);
+          });
+        
+        return response;
+      })
+      .catch(function() {
+        // If network fetch fails, try to get from cache
+        return caches.match(event.request)
+          .then(function(response) {
+            // Return the cached response if we have one
+            if (response) {
+              console.log('[ServiceWorker] Serving from cache:', event.request.url);
+              return response;
+            }
+            
+            // If we don't have a cached response, just return
+            console.log('[ServiceWorker] No cache for:', event.request.url);
+            return new Response('Offline and not cached');
           });
       })
   );
